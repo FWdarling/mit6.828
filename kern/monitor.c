@@ -62,18 +62,19 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 	uint32_t* ebp = (uint32_t*)read_ebp();
 	struct Eipdebuginfo info;
 	while(ebp){
-		//调用代码段称为父程序, 被调用代码段成为子程序 
-		//当父函数调用子函数时, 首先将调用结束后返回地址压入栈中, esp - 4
+		//调用代码段称为父程序, 被调用代码段称为子程序 
+		//当父程序调用子程序时, 首先将调用结束后返回地址压入栈中, esp - 4
 		//然后进入子程序, 首先将之前的ebp的值push入栈, esp - 4
 		//然后将当前esp的值赋值给ebp, 接着将ebx寄存器的值入栈, esp - 4
 		//而后为子程序留下5个uint32大小的空间存储临时变量, esp - 20*
 		//因此当前的ebp向上32位就是父程序的ebp, 再向上32位就是返回地址
 		//接着是5*32位的参数列表(因为是向低地址方向入栈, 所以读取时倒序)*
-		cprintf("  ebp %08x  elp %08x  args %08x %08x %08x %08x %08x\n", 
+		cprintf("  ebp %08x  eip %08x  args %08x %08x %08x %08x %08x\n", 
 				(uint32_t)ebp, ebp[1], ebp[2], ebp[3], ebp[4], ebp[5], ebp[6]);
 		int result = debuginfo_eip(ebp[1], &info);
 		if(!result){
-			cprintf("         %s:%d: %.*s+%u\n", info.eip_file, info.eip_line, info.eip_fn_namelen, info.eip_fn_name, ebp[1] - info.eip_fn_addr);
+			cprintf("\t%s:%d: %.*s+%u\n", info.eip_file, info.eip_line, 
+					info.eip_fn_namelen, info.eip_fn_name, ebp[1] - info.eip_fn_addr);
 		}else{
 			cprintf("Can not find information with eip!\n");
 		}
