@@ -24,6 +24,7 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
+	{ "backtrace", "Display function call stack backtrace", mon_backtrace},
 };
 
 /***** Implementations of basic kernel monitor commands *****/
@@ -59,6 +60,7 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
 	cprintf("Stack backtrace:\n");
 	uint32_t* ebp = (uint32_t*)read_ebp();
+	struct Eipdebuginfo info;
 	while(ebp){
 		//调用代码段称为父程序, 被调用代码段成为子程序 
 		//当父函数调用子函数时, 首先将调用结束后返回地址压入栈中, esp - 4
@@ -67,8 +69,16 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 		//而后为子程序留下5个uint32大小的空间存储临时变量, esp - 20*
 		//因此当前的ebp向上32位就是父程序的ebp, 再向上32位就是返回地址
 		//接着是5*32位的参数列表(因为是向低地址方向入栈, 所以读取时倒序)*
-		cprintf("ebp %08x elp %08x args %08x %08x %08x %08x %08x\n", (uint32_t)ebp, ebp[1], ebp[2], ebp[3], ebp[4], ebp[5], ebp[6]);
+		cprintf("ebp %08x elp %08x args %08x %08x %08x %08x %08x\n", 
+				(uint32_t)ebp, ebp[1], ebp[2], ebp[3], ebp[4], ebp[5], ebp[6]);
+		int result = debuginfo_eip(ebp[1], &info);
+		if(!result){
+			cprintf("       %s:%d: %s+%u\n", info.eip_file, info.eip_line, info.eip_fn_name, ebp[1] - info.eip_fn_addr);
+		}else{
+			cprintf("Can not find information with eip!\n");
+		}
 		ebp = (uint32_t*) ebp[0];
+
 	}
 	return 0;
 }
