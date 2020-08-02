@@ -69,11 +69,11 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 		//而后为子程序留下5个uint32大小的空间存储临时变量, esp - 20*
 		//因此当前的ebp向上32位就是父程序的ebp, 再向上32位就是返回地址
 		//接着是5*32位的参数列表(因为是向低地址方向入栈, 所以读取时倒序)*
-		cprintf("ebp %08x elp %08x args %08x %08x %08x %08x %08x\n", 
+		cprintf("  ebp %08x  elp %08x  args %08x %08x %08x %08x %08x\n", 
 				(uint32_t)ebp, ebp[1], ebp[2], ebp[3], ebp[4], ebp[5], ebp[6]);
 		int result = debuginfo_eip(ebp[1], &info);
 		if(!result){
-			cprintf("       %s:%d: %.*s+%u\n", info.eip_file, info.eip_line, info.eip_fn_namelen, info.eip_fn_name, ebp[1] - info.eip_fn_addr);
+			cprintf("         %s:%d: %.*s+%u\n", info.eip_file, info.eip_line, info.eip_fn_namelen, info.eip_fn_name, ebp[1] - info.eip_fn_addr);
 		}else{
 			cprintf("Can not find information with eip!\n");
 		}
