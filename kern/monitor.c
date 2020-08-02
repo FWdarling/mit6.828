@@ -57,7 +57,19 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
-	// Your code here.
+	cprintf("Stack backtrace:\n");
+	uint32_t* ebp = (uint32_t*)read_ebp();
+	while((uint32_t)ebp){
+		//调用代码段称为父程序, 被调用代码段成为子程序, 
+		//档父函数调用子函数时, 首先将调用结束后返回地址压入栈中, esp-4
+		//然后进入子程序, 首先将之前的ebp的值push入栈, esp - 4
+		//然后将当前esp的值赋值给ebp, 接着将ebx寄存器的值入栈, esp-4
+		//而后为子程序留下5个uint32大小的空间存储临时变量, esp-20
+		//因此当前的ebp向上32位就是父程序的ebp, 再向上32位就是返回地址
+		//接着是5*32位的参数列表(因为是向低地址方向入栈, 所以读取时倒序)
+		cprintf("ebp %08x elp %08x args %08x %08x %08x %08x %08x\n", ebp, ebp[1], ebp[2], ebp[3], ebp[4], ebp[5], ebp[6]);
+		ebp = (uint32_t*) ebp[0];
+	}
 	return 0;
 }
 
