@@ -193,11 +193,17 @@ cga_putc(int c)
 
 	// What is the purpose of this?
 	if (crt_pos >= CRT_SIZE) {
+		//if the current position is no longer within the display range of the screen
 		int i;
 
+		//Starting from the second line, move the content of each line to the previous line
 		memmove(crt_buf, crt_buf + CRT_COLS, (CRT_SIZE - CRT_COLS) * sizeof(uint16_t));
+
+		//Set every position of the last line as a space
 		for (i = CRT_SIZE - CRT_COLS; i < CRT_SIZE; i++)
 			crt_buf[i] = 0x0700 | ' ';
+
+		//Set the current position to the first position of the last line
 		crt_pos -= CRT_COLS;
 	}
 
