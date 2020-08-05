@@ -303,8 +303,8 @@ struct PageInfo *
 page_alloc(int alloc_flags)
 {
 	struct PageInfo *free_page = page_free_list;
-	page_free_list = page_free_list->pp_link;
 	if(free_page == NULL) return NULL;
+	page_free_list = page_free_list->pp_link;
 	free_page->pp_link = NULL;
 
 	if(alloc_flags & ALLOC_ZERO) memset(page2kva(free_page), 0, PGSIZE);
