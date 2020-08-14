@@ -281,8 +281,9 @@ region_alloc(struct Env *e, void *va, size_t len)
 	//   'va' and 'len' values that are not page-aligned.
 	//   You should round va down, and round (va + len) up.
 	//   (Watch out for corner-cases!)
-	uint32_t start = ROUNDDOWN((uint32_t)va, PGSIZE), end = ROUNDUP((uint32_t)va + len, PGSIZE);
-	for(int i = start; i < end; i += PGSIZE){
+	uint32_t start = ROUNDDOWN((uint32_t)va, PGSIZE), 
+			 end = ROUNDUP((uint32_t)va + len, PGSIZE);
+	for(uint32_t i = start; i < end; i += PGSIZE){
 		struct PageInfo *p = page_alloc(0);
 		if(p == NULL) panic("region_alloc error: page alloc failed!\n");
 		if(page_insert(e->env_pgdir, p, (void *)i, PTE_W| PTE_U))
@@ -356,14 +357,14 @@ load_icode(struct Env *e, uint8_t *binary)
 	struct Proghdr *ph = (struct Proghdr *)((uint8_t *)elfHeader + elfHeader->e_phoff),
 				   *eph = ph + elfHeader->e_phnum;
 		for(ph; ph < eph; ph++){
-			if(ph->p_type != ELF_PROG_LOAD)
-				panic("load_icode error: we can't load segments in elf file\n");
-			if(ph->p_memsz < ph->p_filesz)
-				panic("load_icode error: p_memsz < p_filesz\n");
+			if(ph->p_type == ELF_PROG_LOAD){
+				if(ph->p_memsz < ph->p_filesz)
+					panic("load_icode error: p_memsz < p_filesz\n");
 
-			region_alloc(e,(void *) ph->p_filesz, ph->p_memsz);
-			memmove((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
-			memset((void *)(ph->p_va + ph->p_filesz), 0, ph->p_memsz - ph->p_filesz);
+				region_alloc(e, (void *)ph->p_va, ph->p_memsz);
+				memmove((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
+				memset((void *)(ph->p_va + ph->p_filesz), 0, ph->p_memsz - ph->p_filesz);
+			}
 		}
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
