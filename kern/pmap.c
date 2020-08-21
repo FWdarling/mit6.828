@@ -284,19 +284,19 @@ page_init(void)
 	for (i = 0; i < npages; i++) {
 		uint32_t npages_extmem_used = ((uint32_t)boot_alloc(0) - KERNBASE) / PGSIZE;
 		uint32_t npages_io_hole = (EXTPHYSMEM - IOPHYSMEM) / PGSIZE;
-		//第一页标记为被占用, 存储IDT和BIOS
+		//�?一页标记为�?占用, 存储IDT和BIOS
 		if(!i){
 			pages[i].pp_ref = 1;
 			pages[i].pp_link = NULL;
 		}
-		//从0xA0000到0x100000是IOhole 用于存储外设 
-		//而后xtmem中也有一部分被占用
+		//�?0xA0000�?0x100000是IOhole 用于存储外�?? 
+		//而后xtmem�?也有一部分�?占用
 		else if(
 			i >= npages_basemem && i < npages_extmem_used + npages_io_hole + npages_basemem){
 			pages[i].pp_ref = 1;
 			pages[i].pp_link = NULL;
 		}
-		//剩余的内存都标记为未被使用, 
+		//剩余的内存都标�?�为�?�?使用, 
 		//page_free_list采取从高位地址向地位地址的方式存储空闲块, 方便实现
 		else{
 			pages[i].pp_ref = 0;
@@ -384,14 +384,14 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
 	struct PageInfo *new_page = NULL;
 
-	//计算va对应的页目录项地址
+	//计算va对应的页�?录项地址
 	uint32_t pgdir_off = PDX(va);
 	pde_t *pgdir_entry_ptr = pgdir + pgdir_off;
-	//检查对应页是否在内存中
+	//检查�?�应页是否在内存�?
 	if(!(*pgdir_entry_ptr & PTE_P)){
 		//如果页表不在内存并且没有分配则直接返回null
 		if(!create) return NULL;
-		//否则要计算对应页表项地址
+		//否则要�?�算对应页表项地址
 		new_page = page_alloc(ALLOC_ZERO);
 		if(new_page == NULL) return NULL;
 		new_page->pp_ref++;
@@ -460,7 +460,7 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 	}
 	pp->pp_ref++;
 	if((*pte) & PTE_P){
-		//如果va已经映射给了一个页表
+		//如果va已经映射给了一�?页表
 		page_remove(pgdir, va);
 	}
 	*pte = (page2pa(pp) | perm | PTE_P);
@@ -551,7 +551,20 @@ int
 user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
 	// LAB 3: Your code here.
-
+	char *start = ROUNDDOWN((char *)va, PGSIZE), 
+		 *end = ROUNDUP((char *)(va + len), PGSIZE);
+	for(start; start < end; start += PGSIZE){
+		pte_t *cur_pte = pgdir_walk(env->env_pgdir, (void *)start, 0);
+		if((int)start > ULIM || cur_pte == NULL || ((uint32_t)(*cur_pte) & perm) != perm){
+			if(start == ROUNDDOWN((char *)va, PGSIZE)) {
+                user_mem_check_addr = (uintptr_t)va;
+            }
+            else {
+                    user_mem_check_addr = (uintptr_t)start;
+            }
+            return -E_FAULT;
+		}
+	}
 	return 0;
 }
 
