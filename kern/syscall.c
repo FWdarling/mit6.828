@@ -116,7 +116,6 @@ sys_env_set_status(envid_t envid, int status)
 	// LAB 4: Your code here.
 	int ret = 0;
     struct Env *env;
-	cprintf("%d\n", status);
     if (status != ENV_RUNNABLE && status != ENV_NOT_RUNNABLE) 
         return -E_INVAL;
 
@@ -141,7 +140,7 @@ sys_env_set_pgfault_upcall(envid_t envid, void *func)
 {
 	// LAB 4: Your code here.
 	struct Env *e;
-    if (envid2env(envid, &e, 1)) 
+    if (envid2env(envid, &e, 1) < 0) 
         return -E_BAD_ENV;
 
     e->env_pgfault_upcall = func;
@@ -177,27 +176,23 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 
 	// LAB 4: Your code here.
 
-	int ret = 0;
-    struct Env *env;
-    
-    if ((ret = envid2env(envid, &env, 1)) < 0) 
-        return -E_BAD_ENV;
-    
-    if((uintptr_t)va >= UTOP || PGOFF(va))
-        return -E_INVAL;
-    if((perm & PTE_SYSCALL) == 0)
-        return -E_INVAL;
-    if (perm & ~PTE_SYSCALL)
-        return -E_INVAL;
-    
-    struct PageInfo *pp = page_alloc(ALLOC_ZERO);
-    if(!pp) 
-        return -E_NO_MEM;
-    
-    if (page_insert(env->env_pgdir, pp, va, perm) < 0)
-        return -E_NO_MEM;
+	struct Env *e; 									//根据envid找出需要操作的Env结构
+	int ret = envid2env(envid, &e, 1);
+	if (ret) return ret;	//bad_env
 
-    return 0;
+	if ((va >= (void*)UTOP) || (ROUNDDOWN(va, PGSIZE) != va)) return -E_INVAL;		//一系列判定
+	int flag = PTE_U | PTE_P;
+	if ((perm & flag) != flag) return -E_INVAL;
+
+	struct PageInfo *pg = page_alloc(1);			//分配物理页
+	if (!pg) return -E_NO_MEM;
+	ret = page_insert(e->env_pgdir, pg, va, perm);	//建立映射关系
+	if (ret) {
+		page_free(pg);
+		return ret;
+	}
+
+	return 0;
 	//panic("sys_page_alloc not implemented");
 }
 
@@ -371,6 +366,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
         	return sys_page_unmap((envid_t) a1, (void *) a2);
     	case (SYS_exofork):
         	return sys_exofork();
+		case (SYS_env_set_pgfault_upcall):
+			return sys_env_set_pgfault_upcall((envid_t)a1, (void *)a2);
 		default:
 			return -E_INVAL;
 	}

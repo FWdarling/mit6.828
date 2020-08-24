@@ -362,7 +362,35 @@ page_fault_handler(struct Trapframe *tf)
 	//   (the 'tf' variable points at 'curenv->env_tf').
 
 	// LAB 4: Your code here.
+	struct UTrapframe *utf;
+    
+    if (curenv->env_pgfault_upcall) {
+        
+        if (tf->tf_esp >= UXSTACKTOP-PGSIZE && tf->tf_esp < UXSTACKTOP) {
+            // 异常模式下陷入
+            utf = (struct UTrapframe *)(tf->tf_esp - sizeof(struct UTrapframe) - 4);
 
+        }
+        else {
+            // 非异常模式下陷入
+            utf = (struct UTrapframe *)(UXSTACKTOP - sizeof(struct UTrapframe));    
+        }
+        // 检查异常栈是否溢出
+        user_mem_assert(curenv, (const void *) utf, sizeof(struct UTrapframe), PTE_P|PTE_W);
+            
+        utf->utf_fault_va = fault_va;
+        utf->utf_err      = tf->tf_trapno;
+        utf->utf_regs     = tf->tf_regs;
+        utf->utf_eflags   = tf->tf_eflags;
+        // 保存陷入时现场，用于返回
+        utf->utf_eip      = tf->tf_eip;
+        utf->utf_esp      = tf->tf_esp;
+        // 再次转向执行
+        curenv->env_tf.tf_eip        = (uint32_t) curenv->env_pgfault_upcall;
+        // 异常栈
+        curenv->env_tf.tf_esp        = (uint32_t) utf;
+        env_run(curenv);
+    }
 	// Destroy the environment that caused the fault.
 	cprintf("[%08x] user fault va %08x ip %08x\n",
 		curenv->env_id, fault_va, tf->tf_eip);
