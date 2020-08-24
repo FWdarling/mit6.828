@@ -23,7 +23,6 @@ int32_t
 ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 {
 	// LAB 4: Your code here.
-	//panic("ipc_recv not implemented");
 	if (pg == NULL) {
 		pg = (void *)-1;
 	}
@@ -52,18 +51,17 @@ void
 ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 {
 	// LAB 4: Your code here.
-	//panic("ipc_send not implemented");
 	if (pg == NULL) {
 		pg = (void *)-1;
 	}
 	int r;
 	while(1) {
 		r = sys_ipc_try_send(to_env, val, pg, perm);
-		if (r == 0) {		//发送成�?
+		if (r == 0) {		//发送成功
 			return;
-		} else if (r == -E_IPC_NOT_RECV) {	//接收进程没有准�?�好
+		} else if (r == -E_IPC_NOT_RECV) {	//接收进程没有准备好
 			sys_yield();
-		} else {			//其它错�??
+		} else {			//其它错误
 			panic("ipc_send():%e", r);
 		}
 	}

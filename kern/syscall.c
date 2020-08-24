@@ -12,6 +12,8 @@
 #include <kern/console.h>
 #include <kern/sched.h>
 
+#define debug 0
+
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
 // Destroys the environment on memory errors.
@@ -333,19 +335,42 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		pte_t *pte;
 		struct PageInfo *pg = page_lookup(curenv->env_pgdir, srcva, &pte);
 
-		//����ע�͵�˳������ж�
-		if (srcva != ROUNDDOWN(srcva, PGSIZE)) return -E_INVAL;		//srcvaû��ҳ����
-		if ((*pte & perm) != perm) return -E_INVAL;					//permӦ����*pte���Ӽ�
-		if (!pg) return -E_INVAL;									//srcva��û��ӳ�䵽����ҳ
-		if ((perm & PTE_W) && !(*pte & PTE_W)) return -E_INVAL;		//дȨ��
-
+		//按照注释的顺序进行判定
+		if (debug) {
+			cprintf("sys_ipc_try_send():srcva=%08x\n", (uintptr_t)srcva);
+		}
+		if (srcva != ROUNDDOWN(srcva, PGSIZE)) {		//srcva没有页对齐
+			if (debug) {
+				cprintf("sys_ipc_try_send():srcva is not page-alligned\n");
+			}
+			return -E_INVAL;
+		}
+		if ((*pte & perm & 7) != (perm & 7)) {  //perm应该是*pte的子集
+			if (debug) {
+				cprintf("sys_ipc_try_send():perm is wrong\n");
+			}
+			return -E_INVAL;
+		}
+		if (!pg) {			//srcva还没有映射到物理页
+			if (debug) {
+				cprintf("sys_ipc_try_send():srcva is not maped\n");
+			}
+			return -E_INVAL;
+		}
+		if ((perm & PTE_W) && !(*pte & PTE_W)) {	//写权限
+			if (debug) {
+				cprintf("sys_ipc_try_send():*pte do not have PTE_W, but perm have\n");
+			}
+			return -E_INVAL;
+		}		
+		
 		if (rcvenv->env_ipc_dstva < (void*)UTOP) {
-			ret = page_insert(rcvenv->env_pgdir, pg, rcvenv->env_ipc_dstva, perm); //������ͬ��ӳ���ϵ
+			ret = page_insert(rcvenv->env_pgdir, pg, rcvenv->env_ipc_dstva, perm); //共享相同的映射关系
 			if (ret) return ret;
 			rcvenv->env_ipc_perm = perm;
 		}
 	}
-	rcvenv->env_ipc_recving = 0;					//��ǽ��ܽ��̿��ٴν�����Ϣ
+	rcvenv->env_ipc_recving = 0;					//标记接受进程可再次接受信息
 	rcvenv->env_ipc_from = curenv->env_id;
 	rcvenv->env_ipc_value = value; 
 	rcvenv->env_status = ENV_RUNNABLE;
