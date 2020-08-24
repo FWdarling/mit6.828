@@ -131,22 +131,22 @@ trap_init(void)
 	SETGATE(idt[T_SYSCALL], 0, GD_KT, t_syscall, 3);
 
 	//IRQs
-	SETGATE(idt[IRQ_OFFSET + 0], 0, GD_KT, irq0_entry, 3);
-	SETGATE(idt[IRQ_OFFSET + 1], 0, GD_KT, irq1_entry, 3);
-	SETGATE(idt[IRQ_OFFSET + 2], 0, GD_KT, irq2_entry, 3);
-	SETGATE(idt[IRQ_OFFSET + 3], 0, GD_KT, irq3_entry, 3);
-	SETGATE(idt[IRQ_OFFSET + 4], 0, GD_KT, irq4_entry, 3);
-	SETGATE(idt[IRQ_OFFSET + 5], 0, GD_KT, irq5_entry, 3);
-	SETGATE(idt[IRQ_OFFSET + 6], 0, GD_KT, irq6_entry, 3);
-	SETGATE(idt[IRQ_OFFSET + 7], 0, GD_KT, irq7_entry, 3);
-	SETGATE(idt[IRQ_OFFSET + 8], 0, GD_KT, irq8_entry, 3);
-	SETGATE(idt[IRQ_OFFSET + 9], 0, GD_KT, irq9_entry, 3);
-	SETGATE(idt[IRQ_OFFSET + 10], 0, GD_KT, irq10_entry, 3);
-	SETGATE(idt[IRQ_OFFSET + 11], 0, GD_KT, irq11_entry, 3);
-	SETGATE(idt[IRQ_OFFSET + 12], 0, GD_KT, irq12_entry, 3);
-	SETGATE(idt[IRQ_OFFSET + 13], 0, GD_KT, irq13_entry, 3);
-	SETGATE(idt[IRQ_OFFSET + 14], 0, GD_KT, irq14_entry, 3);
-	SETGATE(idt[IRQ_OFFSET + 15], 0, GD_KT, irq15_entry, 3);
+	SETGATE(idt[IRQ_OFFSET], 0, GD_KT, irq0_entry, 0);
+	SETGATE(idt[IRQ_OFFSET + 1], 0, GD_KT, irq1_entry, 0);
+	SETGATE(idt[IRQ_OFFSET + 2], 0, GD_KT, irq2_entry, 0);
+	SETGATE(idt[IRQ_OFFSET + 3], 0, GD_KT, irq3_entry, 0);
+	SETGATE(idt[IRQ_OFFSET + 4], 0, GD_KT, irq4_entry, 0);
+	SETGATE(idt[IRQ_OFFSET + 5], 0, GD_KT, irq5_entry, 0);
+	SETGATE(idt[IRQ_OFFSET + 6], 0, GD_KT, irq6_entry, 0);
+	SETGATE(idt[IRQ_OFFSET + 7], 0, GD_KT, irq7_entry, 0);
+	SETGATE(idt[IRQ_OFFSET + 8], 0, GD_KT, irq8_entry, 0);
+	SETGATE(idt[IRQ_OFFSET + 9], 0, GD_KT, irq9_entry, 0);
+	SETGATE(idt[IRQ_OFFSET + 10], 0, GD_KT, irq10_entry, 0);
+	SETGATE(idt[IRQ_OFFSET + 11], 0, GD_KT, irq11_entry, 0);
+	SETGATE(idt[IRQ_OFFSET + 12], 0, GD_KT, irq12_entry, 0);
+	SETGATE(idt[IRQ_OFFSET + 13], 0, GD_KT, irq13_entry, 0);
+	SETGATE(idt[IRQ_OFFSET + 14], 0, GD_KT, irq14_entry, 0);
+	SETGATE(idt[IRQ_OFFSET + 15], 0, GD_KT, irq15_entry, 0);
 	// Per-CPU setup 
 	trap_init_percpu();
 }
@@ -186,13 +186,13 @@ trap_init_percpu(void)
 	thiscpu->cpu_ts.ts_iomb = sizeof(struct Taskstate);
 
 	// Initialize the TSS slot of the gdt.
-	gdt[GD_TSS0 >> 3] = SEG16(STS_T32A, (uint32_t) (&thiscpu->cpu_ts),
+	gdt[(GD_TSS0 >> 3) + cpunum()] = SEG16(STS_T32A, (uint32_t) (&thiscpu->cpu_ts),
 					sizeof(struct Taskstate) - 1, 0);
-	gdt[GD_TSS0 >> 3].sd_s = 0;
+	gdt[(GD_TSS0 >> 3) + cpunum()].sd_s = 0;
 
 	// Load the TSS selector (like other segment selectors, the
 	// bottom three bits are special; we leave them 0)
-	ltr(GD_TSS0);
+	ltr(GD_TSS0 + (cpunum() << 3));
 
 	// Load the IDT
 	lidt(&idt_pd);
@@ -275,6 +275,10 @@ trap_dispatch(struct Trapframe *tf)
 		// Handle clock interrupts. Don't forget to acknowledge the
 		// interrupt using lapic_eoi() before calling the scheduler!
 		// LAB 4: Your code here.
+		case (IRQ_OFFSET + IRQ_TIMER):
+			lapic_eoi();
+			sched_yield();
+			return;
 
 		default:
 			// Unexpected trap: The user process or the kernel has a bug.

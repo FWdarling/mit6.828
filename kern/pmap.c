@@ -506,7 +506,7 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 	}
 	pp->pp_ref++;
 	if((*pte) & PTE_P){
-		//如果va已经映射给了一�?页表
+		//如果va已经映射给了一�??页表
 		page_remove(pgdir, va);
 	}
 	*pte = (page2pa(pp) | perm | PTE_P);
