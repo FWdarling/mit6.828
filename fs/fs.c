@@ -62,7 +62,14 @@ alloc_block(void)
 	// super->s_nblocks blocks in the disk altogether.
 
 	// LAB 5: Your code here.
-	panic("alloc_block not implemented");
+	uint32_t bmpblock_start = 2;
+	for (uint32_t blockno = 0; blockno < super->s_nblocks; blockno++) {
+		if (block_is_free(blockno)) {					//搜索free的block
+			bitmap[blockno / 32] &= ~(1 << (blockno % 32));		//标记为已使用
+			flush_block(diskaddr(bmpblock_start + (blockno / 32) / NINDIRECT));	//将刚刚修改的bitmap block写到磁盘中
+			return blockno;
+		}
+	}
 	return -E_NO_DISK;
 }
 
